@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>Fiszki: kolory i szkoła</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Fiszki EN">
+<meta name="theme-color" content="#4f46e5">
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif;
+    background:linear-gradient(160deg,#eef2ff,#fdf2f8);
+    color:#1f2937;
+    -webkit-text-size-adjust:100%;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    touch-action:manipulation;
+    -webkit-user-select:none;user-select:none;
+  }
+  #app{max-width:520px;margin:0 auto;padding:12px 14px 24px;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;gap:12px}
+  h1{font-size:20px;margin:4px 0 0;text-align:center}
+  button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;-webkit-appearance:none;appearance:none}
+
+  .tabs,.chips{display:flex;gap:8px}
+  .tab{flex:1;padding:12px;border-radius:14px;background:#fff;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .tab.on{background:#4f46e5;color:#fff}
+  .chip{flex:1;padding:9px 6px;border-radius:999px;background:rgba(255,255,255,.7);font-weight:600;font-size:15px;border:2px solid transparent}
+  .chip.on{border-color:#4f46e5;background:#fff;color:#4f46e5}
+  .opts{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;font-size:14px}
+  .opt{padding:7px 12px;border-radius:999px;background:rgba(255,255,255,.7);font-weight:600}
+  .opt.on{background:#e0e7ff;color:#3730a3}
+
+  /* Flashcard */
+  .scene{perspective:1200px;height:min(56vh,480px);min-height:340px;display:flex}
+  main{display:flex;flex-direction:column;gap:12px}
+  .card{position:relative;width:100%;transform-style:preserve-3d;-webkit-transform-style:preserve-3d;transition:transform .45s;cursor:pointer}
+  .card.noanim{transition:none}
+  .card.flipped{transform:rotateY(180deg)}
+  .face{
+    position:absolute;inset:0;border-radius:24px;background:#fff;box-shadow:0 8px 24px rgba(79,70,229,.18);
+    -webkit-backface-visibility:hidden;backface-visibility:hidden;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:18px;text-align:center;overflow:auto
+  }
+  .face.back{transform:rotateY(180deg);background:#fffbeb}
+  .swatch{width:120px;height:120px;border-radius:50%;border:3px solid rgba(0,0,0,.12);box-shadow:inset 0 -6px 12px rgba(0,0,0,.08)}
+  .emoji{font-size:96px;line-height:1.1}
+  .word{font-size:40px;font-weight:800;line-height:1.1;word-break:break-word}
+  .word.pl{color:#b45309}
+  .hint{font-size:13px;color:#6b7280}
+  .def{font-size:17px;line-height:1.35}
+  .def small{display:block;font-size:12px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+  .say{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:52px;height:52px;padding:0 16px;border-radius:26px;background:#4f46e5;color:#fff;font-size:20px;font-weight:700}
+  .say.sm{height:40px;min-width:40px;font-size:16px;padding:0 12px;border-radius:20px}
+  .say.alt{background:#f59e0b}
+  .say:active{transform:scale(.94)}
+
+  .chips,.opts{flex-wrap:nowrap}
+  .nav{display:flex;gap:10px;align-items:center}
+  .nav button{flex:1;height:54px;border-radius:16px;background:#fff;font-size:22px;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+  .nav button.mid{flex:1.3;font-size:16px}
+  .count{text-align:center;font-size:14px;color:#6b7280}
+
+  /* Quiz */
+  .panel{background:#fff;border-radius:24px;box-shadow:0 8px 24px rgba(79,70,229,.15);padding:18px;display:flex;flex-direction:column;gap:14px;align-items:stretch}
+  .center{text-align:center}
+  .big{height:58px;border-radius:18px;background:#4f46e5;color:#fff;font-size:18px;font-weight:800}
+  .big.green{background:#16a34a}
+  .listen{align-self:center;width:120px;height:120px;border-radius:50%;background:#4f46e5;color:#fff;font-size:52px;box-shadow:0 8px 20px rgba(79,70,229,.4)}
+  .listen:active{transform:scale(.95)}
+  .prog{display:flex;justify-content:space-between;font-weight:700;font-size:15px;color:#6b7280}
+  .bar{height:8px;border-radius:4px;background:#e5e7eb;overflow:hidden}
+  .bar>i{display:block;height:100%;background:#4f46e5;transition:width .3s}
+  .choices{display:grid;gap:10px}
+  .choices.sw{grid-template-columns:1fr 1fr}
+  .choice{min-height:58px;border-radius:16px;background:#f3f4f6;font-size:19px;font-weight:700;padding:10px;border:3px solid transparent}
+  .choice.sw{min-height:84px}
+  .choice .swatch{width:52px;height:52px;margin:0 auto}
+  .choice.ok{background:#dcfce7;border-color:#16a34a}
+  .choice.bad{background:#fee2e2;border-color:#dc2626}
+  .fb{font-size:18px;font-weight:700;min-height:26px}
+  .fb.ok{color:#16a34a}.fb.bad{color:#dc2626}
+  input[type=text]{
+    font:inherit;font-size:22px;text-align:center;padding:14px;border-radius:16px;border:3px solid #c7d2fe;width:100%;outline:none;
+    -webkit-user-select:text;user-select:text;background:#fff;color:inherit
+  }
+  input[type=text]:focus{border-color:#4f46e5}
+  .row{display:flex;gap:10px}
+  .row>*{flex:1}
+  .ghost{height:48px;border-radius:14px;background:#eef2ff;color:#3730a3;font-weight:700}
+  .stars{font-size:64px}
+  .tip{font-size:12px;color:#6b7280;text-align:center;line-height:1.4}
+  #toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;max-width:90vw;text-align:center}
+  #toast.show{opacity:.95}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>🎓 Fiszki: kolory i szkoła</h1>
+  <div class="tabs">
+    <button class="tab on" data-tab="cards">🃏 Fiszki</button>
+    <button class="tab" data-tab="quiz">🎧 Quiz</button>
+  </div>
+  <div class="chips" id="chips">
+    <button class="chip on" data-cat="all">Wszystko</button>
+    <button class="chip" data-cat="colors">🎨 Kolory</button>
+    <button class="chip" data-cat="school">🎒 Szkoła</button>
+  </div>
+  <div class="opts">
+    <button class="opt" id="slowBtn">🐢 Wolno: wył.</button>
+    <button class="opt on" id="autoBtn">🔊 Auto: wł.</button>
+  </div>
+  <main id="main"></main>
+  <div class="tip">Jeśli nie słychać dźwięku: zwiększ głośność i wyłącz tryb cichy w iPhonie.</div>
+</div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+
+/* ====================== DANE ====================== */
+// kolory: [en, pl, hex, definicja EN, definicja PL, (alternatywna pisownia)]
+const COLOR_DATA = [
+  ["red","czerwony","#e53935","The color of a tomato and a fire truck.","Kolor pomidora i wozu strażackiego."],
+  ["blue","niebieski","#1e88e5","The color of the sky on a sunny day.","Kolor nieba w słoneczny dzień."],
+  ["green","zielony","#43a047","The color of grass and leaves.","Kolor trawy i liści."],
+  ["yellow","żółty","#fdd835","The color of the sun and a banana.","Kolor słońca i banana."],
+  ["orange","pomarańczowy","#fb8c00","The color of an orange and a carrot.","Kolor pomarańczy i marchewki."],
+  ["purple","fioletowy","#8e24aa","The color of grapes and plums.","Kolor winogron i śliwek.","violet"],
+  ["pink","różowy","#f06292","The color of bubble gum and a flamingo.","Kolor gumy balonowej i flaminga."],
+  ["brown","brązowy","#795548","The color of chocolate and a tree trunk.","Kolor czekolady i pnia drzewa."],
+  ["black","czarny","#212121","The color of night and coal.","Kolor nocy i węgla."],
+  ["white","biały","#ffffff","The color of snow and milk.","Kolor śniegu i mleka."],
+  ["grey","szary","#9e9e9e","The color of a mouse and rain clouds.","Kolor myszki i deszczowych chmur.","gray"],
+  ["gold","złoty","#d4af37","The color of a gold coin.","Kolor złotej monety."],
+  ["silver","srebrny","#c0c0c0","The color of a shiny spoon.","Kolor błyszczącej łyżki."],
+  ["light blue","jasnoniebieski","#81d4fa","A pale blue, like a clear morning sky.","Blady niebieski, jak czyste poranne niebo.","pale blue"],
+  ["dark blue","granatowy","#1a237e","A very dark blue, like a school uniform.","Bardzo ciemny niebieski, jak mundurek szkolny.","navy blue"],
+  ["turquoise","turkusowy","#26c6da","A blue-green color, like the tropical sea.","Niebiesko-zielony kolor, jak tropikalne morze."],
+  ["beige","beżowy","#e8dcc0","A pale sandy color, like sand or a paper bag.","Jasny, piaskowy kolor, jak piasek."],
+  ["maroon","bordowy","#800000","A dark red color, like red wine.","Ciemnoczerwony kolor, jak czerwone wino.","burgundy"],
+  ["lime green","limonkowy","#9ccc65","A bright light green, like a lime.","Jasny, żywy zielony, jak limonka.","light green"],
+  ["dark green","ciemnozielony","#1b5e20","A deep green, like a pine tree.","Głęboka zieleń, jak świerk."]
+];
+
+// przedmioty: [en, pl, emoji, definicja EN, definicja PL, (alt)]
+const SCHOOL_DATA = [
+  ["ruler","linijka","📏","A flat tool for drawing straight lines and measuring.","Płaskie narzędzie do rysowania prostych linii i mierzenia."],
+  ["pencil case","piórnik","👝","A small bag for pens and pencils.","Mała torebka na długopisy i ołówki.","pencil box"],
+  ["pencil","ołówek","✏️","You write and draw with it. You can erase it.","Piszesz i rysujesz nim. Można go wymazać."],
+  ["pen","długopis","🖊️","You write with ink with this.","Piszesz nim atramentem."],
+  ["eraser","gumka","🧽","It removes pencil marks from paper.","Usuwa ślady ołówka z kartki.","rubber"],
+  ["pencil sharpener","temperówka","🌀","It makes the end of a pencil sharp.","Ostrzy końcówkę ołówka.","sharpener"],
+  ["notebook","zeszyt","📓","A book with empty pages for writing notes.","Książeczka z pustymi kartkami do pisania notatek.","exercise book"],
+  ["textbook","podręcznik","📘","A book that you learn from at school.","Książka, z której uczysz się w szkole.","coursebook"],
+  ["schoolbag","plecak szkolny","🎒","A bag you carry on your back with your school things.","Torba na plecach z rzeczami do szkoły.","backpack"],
+  ["desk","ławka","🗃️","A table where a pupil sits and works.","Mebel, przy którym siedzi i pracuje uczeń."],
+  ["chair","krzesło","🪑","You sit on it.","Siadasz na nim."],
+  ["table","stolik","🍽️","A piece of furniture with a flat top and legs.","Mebel z płaskim blatem i nogami."],
+  ["blackboard","tablica","⬛","A big dark board. The teacher writes on it with chalk.","Duża ciemna tablica. Nauczyciel pisze na niej kredą."],
+  ["whiteboard","tablica biała","📋","A big white board. You write on it with markers.","Duża biała tablica. Pisze się na niej markerami."],
+  ["chalk","kreda","▫️","A white stick for writing on a blackboard.","Biały patyczek do pisania po tablicy."],
+  ["marker","marker","🖍️","A thick pen for writing on a whiteboard.","Gruby pisak do pisania po białej tablicy.","felt-tip pen"],
+  ["highlighter","zakreślacz","🟨","A bright pen for marking important words.","Jaskrawy pisak do zaznaczania ważnych słów."],
+  ["scissors","nożyczki","✂️","You use them to cut paper.","Używasz ich do cięcia papieru."],
+  ["glue","klej","🧴","A sticky liquid for joining paper together.","Lepka substancja do sklejania papieru."],
+  ["crayons","kredki woskowe","🖍️","Colorful wax sticks for drawing.","Kolorowe woskowe patyczki do rysowania."],
+  ["colored pencils","kredki","🌈","Pencils with colors, for drawing and coloring.","Kolorowe ołówki do rysowania i kolorowania.","coloured pencils"],
+  ["paint","farba","🎨","Colorful liquid for painting pictures.","Kolorowy płyn do malowania obrazków."],
+  ["paintbrush","pędzel","🖌️","You hold it to paint with paint.","Trzymasz go, aby malować farbą.","brush"],
+  ["paper","papier","📄","Thin, flat sheets for writing and drawing.","Cienkie, płaskie kartki do pisania i rysowania."],
+  ["folder","teczka","📁","A cover for keeping papers together.","Okładka do trzymania papierów razem."],
+  ["stapler","zszywacz","📎","A tool that joins sheets of paper with a staple.","Narzędzie, które łączy kartki zszywką."],
+  ["sticky tape","taśma klejąca","🩹","A clear tape for sticking paper.","Przezroczysta taśma do sklejania papieru.","tape"],
+  ["calculator","kalkulator","🧮","A small machine that does math for you.","Mała maszyna, która liczy za ciebie."],
+  ["compass","cyrkiel","⭕","A tool for drawing circles.","Narzędzie do rysowania kół.","compasses"],
+  ["protractor","kątomierz","📐","A tool for measuring angles.","Narzędzie do mierzenia kątów."],
+  ["dictionary","słownik","📕","A book that explains the meaning of words.","Książka, która wyjaśnia znaczenie słów."],
+  ["globe","globus","🌍","A round model of the Earth.","Okrągły model Ziemi."],
+  ["map","mapa","🗺️","A drawing of a country, a city or the world.","Rysunek kraju, miasta lub świata."],
+  ["bell","dzwonek","🔔","It rings when a lesson starts or ends.","Dzwoni, gdy lekcja się zaczyna lub kończy.","school bell"],
+  ["timetable","plan lekcji","🗓️","A list that shows your lessons each day.","Lista pokazująca twoje lekcje każdego dnia.","schedule"],
+  ["homework","praca domowa","📝","School work that you do at home.","Zadania szkolne, które robisz w domu."],
+  ["test","sprawdzian","📃","Questions to check what you know.","Pytania sprawdzające, co umiesz.","exam"],
+  ["lesson","lekcja","📖","A period of time when a teacher teaches a class.","Czas, gdy nauczyciel uczy klasę."],
+  ["break","przerwa","☕","A short rest between lessons.","Krótki odpoczynek między lekcjami.","recess"],
+  ["teacher","nauczyciel","🧑‍🏫","A person who teaches pupils at school.","Osoba, która uczy uczniów w szkole."],
+  ["pupil","uczeń","🧑‍🎓","A child who goes to school.","Dziecko, które chodzi do szkoły.","student"],
+  ["headteacher","dyrektor","👔","The person who is in charge of a school.","Osoba, która kieruje szkołą.","principal"],
+  ["classroom","klasa","🏫","A room where pupils have lessons.","Sala, w której uczniowie mają lekcje.","class"],
+  ["school","szkoła","🏫","A place where children go to learn.","Miejsce, do którego dzieci chodzą się uczyć."],
+  ["library","biblioteka","📚","A place with many books you can borrow.","Miejsce z wieloma książkami, które można wypożyczyć."],
+  ["playground","boisko","⚽","An outdoor place where children play at school.","Miejsce na zewnątrz, gdzie dzieci bawią się w szkole.","schoolyard"],
+  ["locker","szafka","🔐","A small cupboard for your things at school.","Mała szafka na twoje rzeczy w szkole."],
+  ["lunch box","śniadaniówka","🍱","A box for your sandwich and snacks.","Pudełko na kanapkę i przekąski.","lunchbox"],
+  ["water bottle","bidon","🥤","A bottle that you fill with water.","Butelka, którą napełniasz wodą."],
+  ["computer","komputer","💻","A machine for typing, games and the internet.","Maszyna do pisania, gier i internetu."],
+  ["clock","zegar","🕒","It shows you what time it is.","Pokazuje, która jest godzina."],
+  ["door","drzwi","🚪","You open it to go in or out of a room.","Otwierasz je, aby wejść lub wyjść z pokoju."],
+  ["window","okno","🪟","You look through it. It lets light in.","Patrzysz przez nie. Wpuszcza światło."],
+  ["wall","ściana","🧱","The side of a room.","Strona pokoju."]
+];
+
+const ALL = [
+  ...COLOR_DATA.map(a => ({g:"colors", en:a[0], pl:a[1], c:a[2], de:a[3], dp:a[4], alt:a[5]})),
+  ...SCHOOL_DATA.map(a => ({g:"school", en:a[0], pl:a[1], e:a[2],  de:a[3], dp:a[4], alt:a[5]}))
+];
+
+/* ====================== POMOCNICZE ====================== */
+const $ = s => document.querySelector(s);
+const shuffle = a => { a = a.slice(); for (let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+const pool = () => cat === "all" ? ALL : ALL.filter(w => w.g === cat);
+const norm = s => s.toLowerCase().replace(/[-_]/g," ").replace(/\s+/g," ").trim();
+const visual = w => w.c ? `<div class="swatch" style="background:${w.c}"></div>` : `<div class="emoji">${w.e}</div>`;
+
+let toastT;
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),2500); }
+
+/* ====================== MOWA ====================== */
+let slow = false, auto = true;
+function pickVoice(lang){
+  const vs = speechSynthesis.getVoices();
+  const l = lang.toLowerCase(), p = l.slice(0,2);
+  const fix = v => v.lang.replace("_","-").toLowerCase();
+  return vs.find(v => fix(v) === l) || vs.find(v => fix(v).startsWith(p)) || null;
+}
+function speak(text, lang="en-US"){
+  if (!("speechSynthesis" in window)) { toast("Ta przeglądarka nie obsługuje czytania na głos."); return; }
+  const s = window.speechSynthesis;
+  s.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = lang;
+  const v = pickVoice(lang); if (v) u.voice = v;
+  u.rate = slow ? 0.55 : 0.9;
+  s.speak(u);
+}
+if ("speechSynthesis" in window) { speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices(); }
+
+/* ====================== STAN ====================== */
+let tab = "cards", cat = "all";
+let deck = [], di = 0, flipped = false;
+let quiz = { mode:"choice", qs:[], i:0, score:0, answered:false, started:false, done:false };
+
+/* ====================== FISZKI ====================== */
+function newDeck(){ deck = shuffle(pool()); di = 0; flipped = false; }
+function cardHTML(w){
+  return `
+  <div class="scene"><div class="card" id="card">
+    <div class="face front">
+      ${visual(w)}
+      <div class="word">${w.en}</div>
+      <button class="say" data-say="${w.en}" data-lang="en-US" aria-label="Odsłuchaj">🔊 Posłuchaj</button>
+      <div class="hint">Dotknij karty, aby zobaczyć po polsku</div>
+    </div>
+    <div class="face back">
+      <div class="word pl">${w.pl}</div>
+      <button class="say alt sm" data-say="${w.pl}" data-lang="pl-PL" aria-label="Odsłuchaj po polsku">🔊 PL</button>
+      <div class="def"><small>Definicja EN</small>${w.de} <button class="say sm" data-say="${w.de}" data-lang="en-US" aria-label="Odsłuchaj definicję">🔊</button></div>
+      <div class="def"><small>Definicja PL</small>${w.dp}</div>
+    </div>
+  </div></div>`;
+}
+function renderCards(){
+  if (!deck.length) newDeck();
+  const w = deck[di];
+  $("#main").innerHTML = cardHTML(w) + `
+    <div class="count">${di+1} / ${deck.length}</div>
+    <div class="nav">
+      <button id="prev" aria-label="Poprzednia">◀</button>
+      <button id="shuf" class="mid">🔀 Losuj</button>
+      <button id="next" aria-label="Następna">▶</button>
+    </div>`;
+  const card = $("#card");
+  if (flipped) card.classList.add("flipped");
+}
+function go(delta){
+  const card = $("#card");
+  card.classList.add("noanim"); card.classList.remove("flipped"); flipped = false;
+  di = (di + delta + deck.length) % deck.length;
+  renderCards();
+  if (auto) speak(deck[di].en);   // wywołane bezpośrednio z kliknięcia => działa na iOS
+}
+
+/* ====================== QUIZ ====================== */
+function startQuiz(){
+  const p = shuffle(pool()).slice(0, 10);
+  quiz.qs = p.map(w => {
+    const others = shuffle(pool().filter(x => x.g === w.g && x !== w)).slice(0,3);
+    return { w, opts: shuffle([w, ...others]) };
+  });
+  quiz.i = 0; quiz.score = 0; quiz.answered = false; quiz.started = true; quiz.done = false;
+  renderQuiz();
+  speak(quiz.qs[0].w.en);
+}
+function renderQuiz(){
+  const m = $("#main");
+  const modeBar = `<div class="chips">
+      <button class="chip ${quiz.mode==="choice"?"on":""}" data-qmode="choice">👆 Wybierz</button>
+      <button class="chip ${quiz.mode==="type"?"on":""}" data-qmode="type">⌨️ Wpisz</button></div>`;
+  if (!quiz.started) {
+    m.innerHTML = `${modeBar}<div class="panel center">
+      <div style="font-size:64px">🎧</div>
+      <div><b>Posłuchaj słowa po angielsku</b> i ${quiz.mode==="choice" ? "wybierz właściwą odpowiedź" : "wpisz je z pamięci"}.</div>
+      <div class="hint">10 pytań · ${cat==="all"?"kolory i szkoła":cat==="colors"?"kolory":"przedmioty szkolne"}</div>
+      <button class="big" id="start">▶ Start</button></div>`;
+    return;
+  }
+  if (quiz.done) {
+    const n = quiz.qs.length, s = quiz.score;
+    const stars = s >= n*0.9 ? "🏆" : s >= n*0.6 ? "😀" : "💪";
+    m.innerHTML = `${modeBar}<div class="panel center">
+      <div class="stars">${stars}</div>
+      <div style="font-size:24px;font-weight:800">Wynik: ${s} / ${n}</div>
+      <button class="big green" id="start">🔁 Jeszcze raz</button></div>`;
+    return;
+  }
+  const q = quiz.qs[quiz.i], w = q.w, n = quiz.qs.length;
+  let answerArea;
+  if (quiz.mode === "choice") {
+    const sw = w.g === "colors";
+    answerArea = `<div class="choices ${sw?"sw":""}">` + q.opts.map((o,idx) =>
+      `<button class="choice ${sw?"sw":""}" data-idx="${idx}" aria-label="${sw?"kolor":o.pl}">${sw?`<div class="swatch" style="background:${o.c}"></div>`:o.pl}</button>`
+    ).join("") + `</div>`;
+  } else {
+    answerArea = `<form id="tf" autocomplete="off">
+      <input type="text" id="ans" inputmode="text" autocapitalize="none" autocorrect="off" autocomplete="off" spellcheck="false" enterkeyhint="done" placeholder="Wpisz po angielsku…">
+      <div class="row" style="margin-top:10px">
+        <button type="button" class="ghost" id="hint">💡 Podpowiedź</button>
+        <button type="submit" class="big" style="height:48px">Sprawdź</button>
+      </div></form>`;
+  }
+  m.innerHTML = `${modeBar}<div class="panel">
+    <div class="prog"><span>Pytanie ${quiz.i+1}/${n}</span><span>⭐ ${quiz.score}</span></div>
+    <div class="bar"><i style="width:${(quiz.i/n)*100}%"></i></div>
+    <button class="listen" id="listen" aria-label="Odtwórz słowo">🔊</button>
+    <div class="center hint">Dotknij, by usłyszeć jeszcze raz</div>
+    ${answerArea}
+    <div class="fb" id="fb"></div>
+    <button class="big green" id="nextq" style="display:none">Dalej ▶</button>
+  </div>`;
+}
+function finishAnswer(ok){
+  quiz.answered = true;
+  if (ok) quiz.score++;
+  const w = quiz.qs[quiz.i].w;
+  const fb = $("#fb");
+  fb.className = "fb " + (ok ? "ok" : "bad");
+  fb.textContent = (ok ? "✅ Dobrze! " : "❌ Prawidłowo: ") + w.en + " = " + w.pl;
+  $("#nextq").style.display = "";
+  $("#nextq").textContent = quiz.i === quiz.qs.length-1 ? "Zobacz wynik 🏁" : "Dalej ▶";
+}
+function nextQuestion(){
+  quiz.i++; quiz.answered = false;
+  if (quiz.i >= quiz.qs.length) { quiz.done = true; renderQuiz(); return; }
+  renderQuiz();
+  if (auto) speak(quiz.qs[quiz.i].w.en);
+}
+
+/* ====================== ZDARZENIA ====================== */
+document.addEventListener("click", e => {
+  const t = e.target;
+
+  const say = t.closest("[data-say]");
+  if (say) { e.stopPropagation(); speak(say.dataset.say, say.dataset.lang); return; }
+
+  const tabBtn = t.closest("[data-tab]");
+  if (tabBtn) {
+    tab = tabBtn.dataset.tab;
+    document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b === tabBtn));
+    tab === "cards" ? renderCards() : renderQuiz();
+    return;
+  }
+
+  const catBtn = t.closest("[data-cat]");
+  if (catBtn) {
+    cat = catBtn.dataset.cat;
+    document.querySelectorAll("#chips .chip").forEach(b => b.classList.toggle("on", b === catBtn));
+    newDeck(); quiz.started = false;
+    tab === "cards" ? renderCards() : renderQuiz();
+    return;
+  }
+
+  if (t.closest("#slowBtn")) {
+    slow = !slow; $("#slowBtn").textContent = "🐢 Wolno: " + (slow ? "wł." : "wył.");
+    $("#slowBtn").classList.toggle("on", slow); return;
+  }
+  if (t.closest("#autoBtn")) {
+    auto = !auto; $("#autoBtn").textContent = "🔊 Auto: " + (auto ? "wł." : "wył.");
+    $("#autoBtn").classList.toggle("on", auto); return;
+  }
+
+  // fiszki
+  if (tab === "cards") {
+    if (t.closest("#card")) {
+      flipped = !flipped; $("#card").classList.toggle("flipped", flipped);
+      return;
+    }
+    if (t.closest("#next")) return go(1);
+    if (t.closest("#prev")) return go(-1);
+    if (t.closest("#shuf")) { newDeck(); renderCards(); if (auto) speak(deck[0].en); return; }
+  }
+
+  // quiz
+  if (tab === "quiz") {
+    const qm = t.closest("[data-qmode]");
+    if (qm) { quiz.mode = qm.dataset.qmode; quiz.started = false; renderQuiz(); return; }
+    if (t.closest("#start")) return startQuiz();
+    if (t.closest("#listen")) { speak(quiz.qs[quiz.i].w.en); return; }
+    if (t.closest("#nextq")) return nextQuestion();
+    const ch = t.closest(".choice");
+    if (ch && !quiz.answered) {
+      const q = quiz.qs[quiz.i], picked = q.opts[+ch.dataset.idx], ok = picked === q.w;
+      ch.classList.add(ok ? "ok" : "bad");
+      if (!ok) document.querySelectorAll(".choice").forEach((b,i) => { if (q.opts[i] === q.w) b.classList.add("ok"); });
+      finishAnswer(ok);
+      return;
+    }
+    if (t.closest("#hint") && !quiz.answered) {
+      const w = quiz.qs[quiz.i].w;
+      $("#fb").className = "fb";
+      $("#fb").textContent = `💡 ${w.pl} · zaczyna się na „${w.en[0]}”, liter: ${w.en.replace(/ /g,"").length}`;
+      return;
+    }
+  }
+});
+
+document.addEventListener("submit", e => {
+  if (e.target.id !== "tf") return;
+  e.preventDefault();
+  if (quiz.answered) return;
+  const w = quiz.qs[quiz.i].w;
+  const val = norm($("#ans").value);
+  if (!val) return;
+  const good = [w.en, w.alt].filter(Boolean).map(norm);
+  // dla "dyrektor" itp. akceptujemy też alternatywną pisownię
+  const ok = good.includes(val);
+  $("#ans").blur();
+  finishAnswer(ok);
+});
+
+/* start */
+newDeck();
+renderCards();
+</script>
+</body>
+</html>
