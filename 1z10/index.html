@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>Trening 1 z 10</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1e3a8a">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#0f172a;color:#e2e8f0}
+  #app{max-width:560px;margin:0 auto;padding:16px}
+  h1{text-align:center;margin:8px 0 2px;font-size:26px}
+  h1 span{color:#facc15}
+  .sub{text-align:center;color:#94a3b8;margin:0 0 16px;font-size:14px}
+  .card{background:#1e293b;border-radius:14px;padding:16px;margin-bottom:14px}
+  h2{margin:0 0 10px;font-size:18px}
+  button,input{font:inherit}
+  input[type=text]{width:100%;padding:12px;border-radius:10px;border:2px solid #334155;background:#0f172a;color:#fff;margin-bottom:10px}
+  input[type=text]:focus{outline:none;border-color:#facc15}
+  .btn{display:block;width:100%;padding:12px;border:0;border-radius:10px;background:#facc15;color:#1e293b;font-weight:700;cursor:pointer;margin-top:8px}
+  .btn.sec{background:#334155;color:#e2e8f0;font-weight:500}
+  .btn:disabled{opacity:.5;cursor:default}
+  label.chk{display:flex;gap:8px;align-items:center;font-size:14px;color:#94a3b8;margin:4px 0}
+  .meta{display:flex;justify-content:space-between;color:#94a3b8;font-size:14px;margin-bottom:8px}
+  .bar{height:6px;background:#334155;border-radius:3px;overflow:hidden;margin-bottom:14px}
+  .bar>i{display:block;height:100%;width:100%;background:#facc15;transition:width .25s linear}
+  .q{font-size:20px;font-weight:600;margin:0 0 14px;line-height:1.35}
+  .opt{display:block;width:100%;text-align:left;padding:13px 14px;margin-bottom:8px;border:2px solid #334155;border-radius:10px;background:#0f172a;color:#e2e8f0;cursor:pointer}
+  .opt:hover:not(:disabled){border-color:#facc15}
+  .opt.ok{border-color:#22c55e;background:#14532d}
+  .opt.bad{border-color:#ef4444;background:#7f1d1d}
+  .score{font-size:48px;font-weight:800;text-align:center;color:#facc15;margin:4px 0}
+  .center{text-align:center}
+  table{width:100%;border-collapse:collapse;font-size:15px}
+  th,td{padding:7px 4px;text-align:left;border-bottom:1px solid #334155}
+  th{color:#94a3b8;font-weight:500;font-size:13px}
+  td.r,th.r{text-align:right}
+  .me{color:#facc15;font-weight:700}
+  .mist{font-size:14px;margin:0 0 10px;line-height:1.4}
+  .mist b{color:#22c55e}
+  textarea{width:100%;height:80px;border-radius:10px;border:2px solid #334155;background:#0f172a;color:#e2e8f0;padding:8px;font-size:12px}
+  .small{font-size:13px;color:#94a3b8}
+  .msg{font-size:13px;margin-top:6px;color:#22c55e;min-height:16px}
+  details summary{cursor:pointer;color:#94a3b8;font-size:14px}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>Trening <span>1 z 10</span></h1>
+  <p class="sub">10 losowych pytań z wiedzy ogólnej. Podaj nick i sprawdź się!</p>
+
+  <section id="home">
+    <div class="card">
+      <input type="text" id="nick" maxlength="20" placeholder="Twój nick" autocomplete="off">
+      <label class="chk"><input type="checkbox" id="timerOn" checked> Limit czasu 20 s na pytanie</label>
+      <button class="btn" id="start">Start</button>
+    </div>
+    <div class="card" id="rankCard">
+      <h2>🏆 Ranking</h2>
+      <div id="rank"></div>
+      <p class="small">Liczy się najlepszy wynik każdego gracza (przy remisie – szybszy czas).</p>
+    </div>
+    <div class="card">
+      <details>
+        <summary>Wspólny ranking ze znajomymi</summary>
+        <p class="small">Strona nie ma serwera, więc wyniki są zapisane w Twojej przeglądarce. Żeby je wymienić ze znajomymi: skopiuj swój kod i wyślij go na czat, a znajomi wkleją go tutaj.</p>
+        <button class="btn sec" id="copyCode">Skopiuj kod z moimi wynikami</button>
+        <textarea id="importBox" placeholder="Wklej tutaj kod od znajomego…"></textarea>
+        <button class="btn sec" id="importBtn">Dodaj wyniki z kodu</button>
+        <div class="msg" id="msg"></div>
+      </details>
+    </div>
+  </section>
+
+  <section id="game" class="hidden">
+    <div class="card">
+      <div class="meta"><span id="prog"></span><span id="cat"></span><span id="pts"></span></div>
+      <div class="bar"><i id="timeBar"></i></div>
+      <p class="q" id="qText"></p>
+      <div id="opts"></div>
+      <button class="btn hidden" id="next">Dalej</button>
+    </div>
+  </section>
+
+  <section id="result" class="hidden">
+    <div class="card">
+      <h2 class="center" id="resTitle"></h2>
+      <div class="score" id="resScore"></div>
+      <p class="center small" id="resTime"></p>
+      <div id="resMist"></div>
+      <button class="btn" id="again">Zagraj jeszcze raz</button>
+      <button class="btn sec" id="toHome">Ranking</button>
+    </div>
+  </section>
+</div>
+
+<script src="questions.js"></script>
+<script>
+(function(){
+  var N = 10, TIME = 20;
+  var LS_RES = "1z10_results", LS_NICK = "1z10_nick", LS_SEEN = "1z10_seen";
+  var $ = function(id){ return document.getElementById(id); };
+
+  function load(key, def){ try { var v = JSON.parse(localStorage.getItem(key)); return v == null ? def : v; } catch(e){ return def; } }
+  function save(key, v){ try { localStorage.setItem(key, JSON.stringify(v)); } catch(e){} }
+
+  // ---------- pomocnicze ----------
+  function shuffle(a){ a = a.slice(); for (var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+  function show(id){ ["home","game","result"].forEach(function(s){ $(s).classList.toggle("hidden", s !== id); }); }
+  function el(tag, text, cls){ var e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; return e; }
+  function qid(q){ return q[1]; }
+
+  // ---------- wyniki ----------
+  var results = load(LS_RES, []);
+  function valid(r){
+    return r && typeof r.id === "string" && typeof r.nick === "string" && r.nick.length > 0 && r.nick.length <= 20 &&
+      Number.isInteger(r.score) && r.score >= 0 && r.score <= N && typeof r.time === "number" && r.time >= 0 && r.time < 1e5;
+  }
+  function merge(list){
+    var ids = {}; results.forEach(function(r){ ids[r.id] = 1; });
+    var added = 0;
+    list.forEach(function(r){
+      if (valid(r) && !ids[r.id]) {
+        results.push({ id: r.id.slice(0,40), nick: r.nick, score: r.score, time: Math.round(r.time), date: String(r.date || "").slice(0,10) });
+        ids[r.id] = 1; added++;
+      }
+    });
+    save(LS_RES, results);
+    return added;
+  }
+  function best(){
+    var by = {};
+    results.forEach(function(r){
+      var k = r.nick.toLowerCase();
+      var b = by[k];
+      if (!b) by[k] = { nick: r.nick, score: r.score, time: r.time, games: 1 };
+      else {
+        b.games++;
+        if (r.score > b.score || (r.score === b.score && r.time < b.time)) { b.score = r.score; b.time = r.time; b.nick = r.nick; }
+      }
+    });
+    return Object.keys(by).map(function(k){ return by[k]; })
+      .sort(function(a,b){ return b.score - a.score || a.time - b.time; });
+  }
+  function renderRank(highlight){
+    var box = $("rank"); box.textContent = "";
+    var list = best().slice(0, 20);
+    if (!list.length) { box.appendChild(el("p", "Brak wyników. Zagraj pierwszy!", "small")); return; }
+    var t = el("table"), h = el("tr");
+    ["#","Gracz","Wynik","Czas","Gry"].forEach(function(x,i){ var th = el("th", x, i>=2 ? "r" : ""); h.appendChild(th); });
+    t.appendChild(h);
+    list.forEach(function(r,i){
+      var tr = el("tr");
+      if (highlight && r.nick.toLowerCase() === highlight.toLowerCase()) tr.className = "me";
+      tr.appendChild(el("td", String(i+1)));
+      tr.appendChild(el("td", r.nick));
+      tr.appendChild(el("td", r.score + "/" + N, "r"));
+      tr.appendChild(el("td", r.time + " s", "r"));
+      tr.appendChild(el("td", String(r.games), "r"));
+      t.appendChild(tr);
+    });
+    box.appendChild(t);
+  }
+
+  // kod do wymiany wyników (tekst base64)
+  function enc(s){ return btoa(encodeURIComponent(s).replace(/%([0-9A-F]{2})/g, function(m,p){ return String.fromCharCode(parseInt(p,16)); })); }
+  function dec(s){ return decodeURIComponent(atob(s).split("").map(function(c){ return "%" + ("00"+c.charCodeAt(0).toString(16)).slice(-2); }).join("")); }
+
+  // ---------- losowanie pytań ----------
+  function pickQuestions(){
+    var seen = load(LS_SEEN, []);
+    var fresh = QUESTIONS.filter(function(q){ return seen.indexOf(qid(q)) < 0; });
+    if (fresh.length < N) { seen = []; fresh = QUESTIONS.slice(); }
+    var chosen = shuffle(fresh).slice(0, N);
+    chosen.forEach(function(q){ seen.push(qid(q)); });
+    save(LS_SEEN, seen);
+    return chosen;
+  }
+
+  // ---------- gra ----------
+  var g = null;
+  function startGame(){
+    var nick = $("nick").value.trim().replace(/\s+/g, " ");
+    if (!nick) { $("nick").focus(); $("nick").style.borderColor = "#ef4444"; return; }
+    save(LS_NICK, nick);
+    g = { nick: nick, qs: pickQuestions(), i: 0, score: 0, wrong: [], t0: Date.now(), timer: null, left: TIME, useTimer: $("timerOn").checked, answered: false };
+    show("game");
+    showQuestion();
+  }
+  function showQuestion(){
+    var q = g.qs[g.i];
+    g.answered = false;
+    $("prog").textContent = "Pytanie " + (g.i+1) + "/" + N;
+    $("cat").textContent = q[0];
+    $("pts").textContent = "Punkty: " + g.score;
+    $("qText").textContent = q[1];
+    $("next").classList.add("hidden");
+    $("next").textContent = g.i === N-1 ? "Zobacz wynik" : "Dalej";
+    var box = $("opts"); box.textContent = "";
+    shuffle(q.slice(2)).forEach(function(o){
+      var b = el("button", o, "opt");
+      b.onclick = function(){ answer(o, b); };
+      box.appendChild(b);
+    });
+    var bar = $("timeBar");
+    clearInterval(g.timer);
+    if (g.useTimer) {
+      g.left = TIME; bar.style.width = "100%"; bar.parentNode.style.visibility = "visible";
+      g.timer = setInterval(function(){
+        g.left -= 0.25;
+        bar.style.width = Math.max(0, g.left / TIME * 100) + "%";
+        if (g.left <= 0) answer(null, null);
+      }, 250);
+    } else bar.parentNode.style.visibility = "hidden";
+  }
+  function answer(choice, btn){
+    if (g.answered) return;
+    g.answered = true; clearInterval(g.timer);
+    var q = g.qs[g.i], ok = choice === q[2];
+    if (ok) g.score++; else g.wrong.push({ q: q[1], correct: q[2], given: choice });
+    Array.prototype.forEach.call($("opts").children, function(b){
+      b.disabled = true;
+      if (b.textContent === q[2]) b.classList.add("ok");
+    });
+    if (btn && !ok) btn.classList.add("bad");
+    $("pts").textContent = "Punkty: " + g.score;
+    $("next").classList.remove("hidden");
+    $("next").focus();
+  }
+  function nextQ(){
+    g.i++;
+    if (g.i >= N) finish(); else showQuestion();
+  }
+  function finish(){
+    var secs = Math.round((Date.now() - g.t0) / 1000);
+    var r = { id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), nick: g.nick, score: g.score, time: secs, date: new Date().toISOString().slice(0,10) };
+    results.push(r); save(LS_RES, results);
+    $("resTitle").textContent = g.nick + ", Twój wynik:";
+    $("resScore").textContent = g.score + " / " + N;
+    $("resTime").textContent = "Czas: " + secs + " s";
+    var m = $("resMist"); m.textContent = "";
+    if (g.wrong.length) {
+      m.appendChild(el("p", "Do powtórki:", "small"));
+      g.wrong.forEach(function(w){
+        var p = el("p", null, "mist");
+        p.appendChild(document.createTextNode(w.q + " → "));
+        p.appendChild(el("b", w.correct));
+        if (w.given == null) p.appendChild(document.createTextNode(" (brak odpowiedzi)"));
+        m.appendChild(p);
+      });
+    } else m.appendChild(el("p", "Bezbłędnie! 🎉", "center"));
+    show("result");
+  }
+
+  // ---------- zdarzenia ----------
+  $("start").onclick = startGame;
+  $("nick").onkeydown = function(e){ $("nick").style.borderColor = ""; if (e.key === "Enter") startGame(); };
+  $("next").onclick = nextQ;
+  $("again").onclick = function(){ startGame(); };
+  $("toHome").onclick = function(){ renderRank(g && g.nick); show("home"); };
+  $("copyCode").onclick = function(){
+    var code = enc(JSON.stringify(results));
+    var done = function(){ $("msg").textContent = "Skopiowano! Wyślij kod znajomym."; };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(done, function(){ fallback(code); });
+    else fallback(code);
+    function fallback(c){ $("importBox").value = c; $("importBox").select(); $("msg").textContent = "Zaznacz i skopiuj kod z pola poniżej."; }
+  };
+  $("importBtn").onclick = function(){
+    var raw = $("importBox").value.trim();
+    try {
+      var list = JSON.parse(dec(raw));
+      if (!Array.isArray(list)) throw 0;
+      var n = merge(list);
+      $("msg").textContent = "Dodano wyników: " + n + ".";
+      $("importBox").value = "";
+      renderRank();
+    } catch(e){ $("msg").textContent = "Nieprawidłowy kod."; }
+  };
+
+  // ---------- start ----------
+  $("nick").value = load(LS_NICK, "");
+  renderRank();
+  // opcjonalny wspólny ranking: plik ranking.json w repozytorium (tablica wyników)
+  fetch("ranking.json", { cache: "no-store" }).then(function(r){ return r.ok ? r.json() : []; })
+    .then(function(list){ if (Array.isArray(list) && merge(list)) renderRank(); })
+    .catch(function(){});
+})();
+</script>
+</body>
+</html>
