@@ -60,7 +60,7 @@
       <h2>🏆 Ranking</h2>
       <div id="rank"></div>
       <p class="small" id="sync"></p>
-      <p class="small">Liczy się najlepszy wynik każdego gracza (przy remisie – szybszy czas).</p>
+      <p class="small">Każda gra to osobne miejsce w rankingu. Wyżej jest lepszy wynik, a przy remisie szybszy czas (pokazuje 50 najlepszych).</p>
     </div>
     <div class="card">
       <details>
@@ -127,33 +127,33 @@
     var added = 0;
     list.forEach(function(r){
       if (valid(r) && !ids[r.id]) {
-        results.push({ id: r.id.slice(0,40), nick: r.nick, score: r.score, time: Math.round(r.time), date: String(r.date || "").slice(0,10) });
+        results.push({ id: r.id.slice(0,40), nick: r.nick, score: r.score, time: Math.round(r.time), date: String(r.date || "").slice(0,10), ts: typeof r.ts === "string" ? r.ts.slice(0,30) : "" });
         ids[r.id] = 1; added++;
       }
     });
     save(LS_RES, results);
     return added;
   }
-  function best(){
-    var by = {};
-    results.forEach(function(r){
-      var k = r.nick.toLowerCase();
-      var b = by[k];
-      if (!b) by[k] = { nick: r.nick, score: r.score, time: r.time, games: 1 };
-      else {
-        b.games++;
-        if (r.score > b.score || (r.score === b.score && r.time < b.time)) { b.score = r.score; b.time = r.time; b.nick = r.nick; }
-      }
+  function allGames(){
+    return results.slice().sort(function(a,b){
+      return b.score - a.score || a.time - b.time || String(a.ts || a.date).localeCompare(String(b.ts || b.date));
     });
-    return Object.keys(by).map(function(k){ return by[k]; })
-      .sort(function(a,b){ return b.score - a.score || a.time - b.time; });
+  }
+  function fmtDate(r){
+    var d = r.ts ? new Date(r.ts) : null;
+    if (d && !isNaN(d)) {
+      var p2 = function(n){ return (n < 10 ? "0" : "") + n; };
+      return p2(d.getDate()) + "." + p2(d.getMonth()+1) + " " + p2(d.getHours()) + ":" + p2(d.getMinutes());
+    }
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(r.date || "");
+    return m ? m[3] + "." + m[2] : "";
   }
   function renderRank(highlight){
     var box = $("rank"); box.textContent = "";
-    var list = best().slice(0, 20);
+    var list = allGames().slice(0, 50);
     if (!list.length) { box.appendChild(el("p", "Brak wyników. Zagraj pierwszy!", "small")); return; }
     var t = el("table"), h = el("tr");
-    ["#","Gracz","Wynik","Czas","Gry"].forEach(function(x,i){ var th = el("th", x, i>=2 ? "r" : ""); h.appendChild(th); });
+    ["#","Gracz","Wynik","Czas","Data"].forEach(function(x,i){ h.appendChild(el("th", x, i>=2 ? "r" : "")); });
     t.appendChild(h);
     list.forEach(function(r,i){
       var tr = el("tr");
@@ -162,7 +162,7 @@
       tr.appendChild(el("td", r.nick));
       tr.appendChild(el("td", r.score + "/" + N, "r"));
       tr.appendChild(el("td", r.time + " s", "r"));
-      tr.appendChild(el("td", String(r.games), "r"));
+      tr.appendChild(el("td", fmtDate(r), "r small"));
       t.appendChild(tr);
     });
     box.appendChild(t);
@@ -239,7 +239,7 @@
   }
   function finish(){
     var secs = Math.round((Date.now() - g.t0) / 1000);
-    var r = { id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), nick: g.nick, score: g.score, time: secs, date: new Date().toISOString().slice(0,10) };
+    var r = { id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), nick: g.nick, score: g.score, time: secs, date: new Date().toISOString().slice(0,10), ts: new Date().toISOString() };
     results.push(r); save(LS_RES, results);
     sync(true);
     $("resTitle").textContent = g.nick + ", Twój wynik:";
