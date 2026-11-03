@@ -59,6 +59,7 @@
     <div class="card" id="rankCard">
       <h2>🏆 Ranking</h2>
       <div id="rank"></div>
+      <p class="small" id="sync"></p>
       <p class="small">Liczy się najlepszy wynik każdego gracza (przy remisie – szybszy czas).</p>
     </div>
     <div class="card">
@@ -99,6 +100,10 @@
 <script>
 (function(){
   var N = 10, TIME = 20;
+  // --- Wspólny ranking online (JSONBin) ---
+  var JSONBIN_ID = "6ae99ea0ffd5d16053a1c647";
+  var JSONBIN_KEY = ""; // <- wklej tutaj Access Key (Read + Update); bez niego ranking tylko się wczytuje
+  var JB_URL = "https://api.jsonbin.io/v3/b/" + JSONBIN_ID;
   var LS_RES = "1z10_results", LS_NICK = "1z10_nick", LS_SEEN = "1z10_seen";
   var $ = function(id){ return document.getElementById(id); };
 
@@ -236,6 +241,7 @@
     var secs = Math.round((Date.now() - g.t0) / 1000);
     var r = { id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), nick: g.nick, score: g.score, time: secs, date: new Date().toISOString().slice(0,10) };
     results.push(r); save(LS_RES, results);
+    sync(true);
     $("resTitle").textContent = g.nick + ", Twój wynik:";
     $("resScore").textContent = g.score + " / " + N;
     $("resTime").textContent = "Czas: " + secs + " s";
@@ -258,7 +264,7 @@
   $("nick").onkeydown = function(e){ $("nick").style.borderColor = ""; if (e.key === "Enter") startGame(); };
   $("next").onclick = nextQ;
   $("again").onclick = function(){ startGame(); };
-  $("toHome").onclick = function(){ renderRank(g && g.nick); show("home"); };
+  $("toHome").onclick = function(){ renderRank(g && g.nick); show("home"); sync(false); };
   $("copyCode").onclick = function(){
     var code = enc(JSON.stringify(results));
     var done = function(){ $("msg").textContent = "Skopiowano! Wyślij kod znajomym."; };
@@ -281,10 +287,30 @@
   // ---------- start ----------
   $("nick").value = load(LS_NICK, "");
   renderRank();
-  // opcjonalny wspólny ranking: plik ranking.json w repozytorium (tablica wyników)
-  fetch("ranking.json", { cache: "no-store" }).then(function(r){ return r.ok ? r.json() : []; })
-    .then(function(list){ if (Array.isArray(list) && merge(list)) renderRank(); })
-    .catch(function(){});
+  // ---------- synchronizacja online ----------
+  function setStatus(t){ $("sync").textContent = t; }
+  function remoteLoad(){
+    return fetch(JB_URL + "/latest", { headers: { "X-Bin-Meta": "false" }, cache: "no-store" })
+      .then(function(r){ if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function(j){ j = j.record || j; return Array.isArray(j.results) ? j.results : []; });
+  }
+  function sync(push){
+    setStatus("Ranking online: łączenie…");
+    return remoteLoad().then(function(list){
+      merge(list);
+      renderRank($("nick").value.trim());
+      if (push && JSONBIN_KEY) {
+        var all = results.filter(valid).slice(-500);
+        return fetch(JB_URL, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", "X-Access-Key": JSONBIN_KEY },
+          body: JSON.stringify({ results: all })
+        }).then(function(r){ if (!r.ok) throw new Error(r.status); setStatus("Ranking online: zsynchronizowano ✓"); });
+      }
+      setStatus(JSONBIN_KEY ? "Ranking online: zsynchronizowano ✓" : "Ranking online: tylko odczyt (brak klucza)");
+    }).catch(function(){ setStatus("Ranking online: brak połączenia, pokazuję wyniki zapisane w przeglądarce"); });
+  }
+  sync(true);
 })();
 </script>
 </body>
