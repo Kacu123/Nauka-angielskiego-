@@ -42,6 +42,9 @@
   .small{font-size:13px;color:#94a3b8}
   .msg{font-size:13px;margin-top:6px;color:#22c55e;min-height:16px}
   details summary{cursor:pointer;color:#94a3b8;font-size:14px}
+  select{width:100%;padding:11px;border-radius:10px;border:2px solid #334155;background:#0f172a;color:#fff;margin-bottom:10px;font:inherit}
+  .mode{display:block;font-size:11px;color:#94a3b8;font-weight:400}
+  .dots{letter-spacing:2px;color:#facc15}
   .hidden{display:none}
 </style>
 </head>
@@ -53,6 +56,13 @@
   <section id="home">
     <div class="card">
       <input type="text" id="nick" maxlength="20" placeholder="Twój nick" autocomplete="off">
+      <select id="level" aria-label="Poziom trudności">
+        <option value="mix">Poziom: mieszany (rosnący)</option>
+        <option value="1">Poziom: łatwy</option>
+        <option value="2">Poziom: średni</option>
+        <option value="3">Poziom: trudny</option>
+      </select>
+      <select id="cat" aria-label="Kategoria"></select>
       <label class="chk"><input type="checkbox" id="timerOn" checked> Limit czasu 20 s na pytanie</label>
       <button class="btn" id="start">Start</button>
     </div>
@@ -76,7 +86,7 @@
 
   <section id="game" class="hidden">
     <div class="card">
-      <div class="meta"><span id="prog"></span><span id="cat"></span><span id="pts"></span></div>
+      <div class="meta"><span id="prog"></span><span id="catLabel"></span><span id="pts"></span></div>
       <div class="bar"><i id="timeBar"></i></div>
       <p class="q" id="qText"></p>
       <div id="opts"></div>
@@ -97,6 +107,11 @@
 </div>
 
 <script src="questions.js"></script>
+<script src="questions_geo.js"></script>
+<script src="questions_hist.js"></script>
+<script src="questions_nauka.js"></script>
+<script src="questions_kultura.js"></script>
+<script src="questions_sport_ogolne.js"></script>
 <script>
 (function(){
   var N = 10, TIME = 20;
@@ -104,7 +119,7 @@
   var JSONBIN_ID = "6ae99ea0ffd5d16053a1c647";
   var JSONBIN_KEY = "$2a$10$dIElLY9vU.Db5Uq0htIu0.O0LhfyrmNvwzNnE6pRlalK8dFidnwyq"; // <- wklej tutaj Access Key (Read + Update); bez niego ranking tylko się wczytuje
   var JB_URL = "https://api.jsonbin.io/v3/b/" + JSONBIN_ID;
-  var LS_RES = "1z10_results", LS_NICK = "1z10_nick", LS_SEEN = "1z10_seen";
+  var LS_PREF = "1z10_pref", LS_RES = "1z10_results", LS_NICK = "1z10_nick", LS_SEEN = "1z10_seen";
   var $ = function(id){ return document.getElementById(id); };
 
   function load(key, def){ try { var v = JSON.parse(localStorage.getItem(key)); return v == null ? def : v; } catch(e){ return def; } }
@@ -114,7 +129,7 @@
   function shuffle(a){ a = a.slice(); for (var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
   function show(id){ ["home","game","result"].forEach(function(s){ $(s).classList.toggle("hidden", s !== id); }); }
   function el(tag, text, cls){ var e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; return e; }
-  function qid(q){ return q[1]; }
+  function qid(q){ return q[2] + "|" + q[3]; }
 
   // ---------- wyniki ----------
   var results = load(LS_RES, []);
@@ -127,7 +142,7 @@
     var added = 0;
     list.forEach(function(r){
       if (valid(r) && !ids[r.id]) {
-        results.push({ id: r.id.slice(0,40), nick: r.nick, score: r.score, time: Math.round(r.time), date: String(r.date || "").slice(0,10), ts: typeof r.ts === "string" ? r.ts.slice(0,30) : "" });
+        results.push({ id: r.id.slice(0,40), nick: r.nick, score: r.score, time: Math.round(r.time), date: String(r.date || "").slice(0,10), ts: typeof r.ts === "string" ? r.ts.slice(0,30) : "", mode: typeof r.mode === "string" ? r.mode.slice(0,40) : "" });
         ids[r.id] = 1; added++;
       }
     });
@@ -159,7 +174,9 @@
       var tr = el("tr");
       if (highlight && r.nick.toLowerCase() === highlight.toLowerCase()) tr.className = "me";
       tr.appendChild(el("td", String(i+1)));
-      tr.appendChild(el("td", r.nick));
+      var tdn = el("td", r.nick);
+      if (r.mode) tdn.appendChild(el("span", r.mode, "mode"));
+      tr.appendChild(tdn);
       tr.appendChild(el("td", r.score + "/" + N, "r"));
       tr.appendChild(el("td", r.time + " s", "r"));
       tr.appendChild(el("td", fmtDate(r), "r small"));
@@ -173,14 +190,30 @@
   function dec(s){ return decodeURIComponent(atob(s).split("").map(function(c){ return "%" + ("00"+c.charCodeAt(0).toString(16)).slice(-2); }).join("")); }
 
   // ---------- losowanie pytań ----------
-  function pickQuestions(){
+  var QUOTA = { mix: { 1: 4, 2: 4, 3: 2 }, "1": { 1: N }, "2": { 2: N }, "3": { 3: N } };
+  var LEVEL_NAME = { mix: "mieszany", "1": "łatwy", "2": "średni", "3": "trudny" };
+  function pickQuestions(level, cat){
     var seen = load(LS_SEEN, []);
-    var fresh = QUESTIONS.filter(function(q){ return seen.indexOf(qid(q)) < 0; });
-    if (fresh.length < N) { seen = []; fresh = QUESTIONS.slice(); }
-    var chosen = shuffle(fresh).slice(0, N);
-    chosen.forEach(function(q){ seen.push(qid(q)); });
+    var pool = QUESTIONS.filter(function(q){ return !cat || q[0] === cat; });
+    var chosen = [], used = {};
+    function take(list, n){
+      var fresh = list.filter(function(q){ return seen.indexOf(qid(q)) < 0 && !used[qid(q)]; });
+      if (fresh.length < n) {
+        // pula wyczerpana: zapomnij, co już było w tej puli
+        var ids = list.map(qid);
+        seen = seen.filter(function(x){ return ids.indexOf(x) < 0; });
+        fresh = list.filter(function(q){ return !used[qid(q)]; });
+      }
+      shuffle(fresh).slice(0, n).forEach(function(q){ chosen.push(q); used[qid(q)] = 1; seen.push(qid(q)); });
+    }
+    var quota = QUOTA[level] || QUOTA.mix;
+    Object.keys(quota).forEach(function(d){
+      take(pool.filter(function(q){ return q[1] === Number(d); }), quota[d]);
+    });
+    if (chosen.length < N) take(pool, N - chosen.length);   // za mało pytań na danym poziomie
     save(LS_SEEN, seen);
-    return chosen;
+    // w trybie mieszanym pytania rosną w trudności, jak w programie
+    return level === "mix" ? chosen.sort(function(a,b){ return a[1] - b[1]; }) : shuffle(chosen);
   }
 
   // ---------- gra ----------
@@ -189,7 +222,9 @@
     var nick = $("nick").value.trim().replace(/\s+/g, " ");
     if (!nick) { $("nick").focus(); $("nick").style.borderColor = "#ef4444"; return; }
     save(LS_NICK, nick);
-    g = { nick: nick, qs: pickQuestions(), i: 0, score: 0, wrong: [], t0: Date.now(), timer: null, left: TIME, useTimer: $("timerOn").checked, answered: false };
+    var level = $("level").value, cat = $("cat").value;
+    save(LS_PREF, { level: level, cat: cat, timer: $("timerOn").checked });
+    g = { nick: nick, mode: LEVEL_NAME[level] + (cat ? " · " + cat : ""), qs: pickQuestions(level, cat), i: 0, score: 0, wrong: [], t0: Date.now(), timer: null, left: TIME, useTimer: $("timerOn").checked, answered: false };
     show("game");
     showQuestion();
   }
@@ -197,13 +232,15 @@
     var q = g.qs[g.i];
     g.answered = false;
     $("prog").textContent = "Pytanie " + (g.i+1) + "/" + N;
-    $("cat").textContent = q[0];
+    $("catLabel").textContent = q[0] + "  ";
+    var dots = el("span", "●".repeat(q[1]) + "○".repeat(3 - q[1]), "dots");
+    $("catLabel").appendChild(dots);
     $("pts").textContent = "Punkty: " + g.score;
-    $("qText").textContent = q[1];
+    $("qText").textContent = q[2];
     $("next").classList.add("hidden");
     $("next").textContent = g.i === N-1 ? "Zobacz wynik" : "Dalej";
     var box = $("opts"); box.textContent = "";
-    shuffle(q.slice(2)).forEach(function(o){
+    shuffle(q.slice(3)).forEach(function(o){
       var b = el("button", o, "opt");
       b.onclick = function(){ answer(o, b); };
       box.appendChild(b);
@@ -222,11 +259,11 @@
   function answer(choice, btn){
     if (g.answered) return;
     g.answered = true; clearInterval(g.timer);
-    var q = g.qs[g.i], ok = choice === q[2];
-    if (ok) g.score++; else g.wrong.push({ q: q[1], correct: q[2], given: choice });
+    var q = g.qs[g.i], ok = choice === q[3];
+    if (ok) g.score++; else g.wrong.push({ q: q[2], correct: q[3], given: choice });
     Array.prototype.forEach.call($("opts").children, function(b){
       b.disabled = true;
-      if (b.textContent === q[2]) b.classList.add("ok");
+      if (b.textContent === q[3]) b.classList.add("ok");
     });
     if (btn && !ok) btn.classList.add("bad");
     $("pts").textContent = "Punkty: " + g.score;
@@ -239,7 +276,7 @@
   }
   function finish(){
     var secs = Math.round((Date.now() - g.t0) / 1000);
-    var r = { id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), nick: g.nick, score: g.score, time: secs, date: new Date().toISOString().slice(0,10), ts: new Date().toISOString() };
+    var r = { id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), nick: g.nick, score: g.score, time: secs, date: new Date().toISOString().slice(0,10), ts: new Date().toISOString(), mode: g.mode };
     results.push(r); save(LS_RES, results);
     sync(true);
     $("resTitle").textContent = g.nick + ", Twój wynik:";
@@ -285,6 +322,18 @@
   };
 
   // ---------- start ----------
+  (function(){
+    var sel = $("cat"), cats = [];
+    QUESTIONS.forEach(function(q){ if (cats.indexOf(q[0]) < 0) cats.push(q[0]); });
+    var o = el("option", "Kategoria: wszystkie"); o.value = ""; sel.appendChild(o);
+    cats.forEach(function(c){ var x = el("option", c); x.value = c; sel.appendChild(x); });
+    var pref = load(LS_PREF, null);
+    if (pref) {
+      if (QUOTA[pref.level]) $("level").value = pref.level;
+      if (cats.indexOf(pref.cat) >= 0) sel.value = pref.cat;
+      if (typeof pref.timer === "boolean") $("timerOn").checked = pref.timer;
+    }
+  })();
   $("nick").value = load(LS_NICK, "");
   renderRank();
   // ---------- synchronizacja online ----------

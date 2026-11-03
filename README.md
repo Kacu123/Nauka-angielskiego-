@@ -17,10 +17,10 @@ Jeden plik `index.html`, bez zależności. Działa na iPhonie (Safari) i na komp
 
 Prosta strona do ćwiczenia pytań z wiedzy ogólnej. Bez serwera i logowania, czysty HTML/JS.
 
-- Podajesz nick, losuje się 10 pytań (z ~110, z kategorii: geografia, historia, nauka, kultura, sport, ogólne). Pytania nie powtarzają się, dopóki nie wykorzystasz całej puli.
+- Podajesz nick, losuje się 10 pytań z bazy ok. 980 pytań w 10 kategoriach i na 3 poziomach trudności. Tryb „mieszany” daje 4 łatwe, 4 średnie i 2 trudne, od najłatwiejszych. Można też wybrać jeden poziom i jedną kategorię. Pytania nie powtarzają się, dopóki nie wykorzystasz całej puli.
 - 4 odpowiedzi, opcjonalny limit 20 s, na końcu lista błędów do powtórki.
 - Ranking (najlepszy wynik gracza, przy remisie szybszy czas) zapisuje się w przeglądarce.
 - **Wspólny ranking:** w „Wspólny ranking ze znajomymi” skopiuj kod i wyślij znajomym, a oni wkleją go u siebie. Możesz też wkleić wyniki do pliku `1z10/ranking.json` (tablica) i zrobić commit, wtedy każdy zobaczy je od razu.
-- Własne pytania: dopisz linijkę w `1z10/questions.js`.
+- Własne pytania: dopisz linijkę na końcu któregoś pliku `1z10/questions*.js` w formacie `[C.G, 2, "Pytanie?", "Poprawna", "zła 1", "zła 2", "zła 3"]` (trudność 1–3).
 
 Po włączeniu GitHub Pages (Settings → Pages → branch → `/ (root)`) strona jest pod `…github.io/<repo>/1z10/`.
