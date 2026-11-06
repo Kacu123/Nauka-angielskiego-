@@ -64,6 +64,7 @@
       </select>
       <select id="cat" aria-label="Kategoria"></select>
       <label class="chk"><input type="checkbox" id="timerOn" checked> Limit czasu 20 s na pytanie</label>
+      <label class="chk"><input type="checkbox" id="anon"> Gra anonimowa (bez zapisu w rankingu)</label>
       <button class="btn" id="start">Start</button>
     </div>
     <div class="card" id="rankCard">
@@ -219,12 +220,13 @@
   // ---------- gra ----------
   var g = null;
   function startGame(){
+    var anon = $("anon").checked;
     var nick = $("nick").value.trim().replace(/\s+/g, " ");
-    if (!nick) { $("nick").focus(); $("nick").style.borderColor = "#ef4444"; return; }
-    save(LS_NICK, nick);
+    if (!nick && !anon) { $("nick").focus(); $("nick").style.borderColor = "#ef4444"; return; }
+    if (nick) save(LS_NICK, nick);
     var level = $("level").value, cat = $("cat").value;
     save(LS_PREF, { level: level, cat: cat, timer: $("timerOn").checked });
-    g = { nick: nick, mode: LEVEL_NAME[level] + (cat ? " · " + cat : ""), qs: pickQuestions(level, cat), i: 0, score: 0, wrong: [], t0: Date.now(), timer: null, left: TIME, useTimer: $("timerOn").checked, answered: false };
+    g = { nick: nick, anon: anon, mode: LEVEL_NAME[level] + (cat ? " · " + cat : ""), qs: pickQuestions(level, cat), i: 0, score: 0, wrong: [], t0: Date.now(), timer: null, left: TIME, useTimer: $("timerOn").checked, answered: false };
     show("game");
     showQuestion();
   }
@@ -277,11 +279,10 @@
   function finish(){
     var secs = Math.round((Date.now() - g.t0) / 1000);
     var r = { id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), nick: g.nick, score: g.score, time: secs, date: new Date().toISOString().slice(0,10), ts: new Date().toISOString(), mode: g.mode };
-    results.push(r); save(LS_RES, results);
-    sync(true);
-    $("resTitle").textContent = g.nick + ", Twój wynik:";
+    if (!g.anon) { results.push(r); save(LS_RES, results); sync(true); }
+    $("resTitle").textContent = g.anon ? "Gra anonimowa. Twój wynik:" : g.nick + ", Twój wynik:";
     $("resScore").textContent = g.score + " / " + N;
-    $("resTime").textContent = "Czas: " + secs + " s";
+    $("resTime").textContent = "Czas: " + secs + " s" + (g.anon ? " · nie zapisano w rankingu" : "");
     var m = $("resMist"); m.textContent = "";
     if (g.wrong.length) {
       m.appendChild(el("p", "Do powtórki:", "small"));
@@ -301,7 +302,7 @@
   $("nick").onkeydown = function(e){ $("nick").style.borderColor = ""; if (e.key === "Enter") startGame(); };
   $("next").onclick = nextQ;
   $("again").onclick = function(){ startGame(); };
-  $("toHome").onclick = function(){ renderRank(g && g.nick); show("home"); sync(false); };
+  $("toHome").onclick = function(){ renderRank(g && !g.anon && g.nick); show("home"); sync(false); };
   $("copyCode").onclick = function(){
     var code = enc(JSON.stringify(results));
     var done = function(){ $("msg").textContent = "Skopiowano! Wyślij kod znajomym."; };
