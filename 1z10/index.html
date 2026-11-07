@@ -68,9 +68,15 @@
       <button class="btn" id="start">Start</button>
     </div>
     <div class="card" id="rankCard">
-      <h2>🏆 Ranking</h2>
+      <h2>🏆 Ranking – sezon 2</h2>
       <div id="rank"></div>
       <p class="small" id="sync"></p>
+      <details>
+        <summary>Archiwum: ranking sezonu 1 (stare pytania)</summary>
+        <div id="rankOld"></div>
+        <button class="btn sec" id="copyOld">Skopiuj archiwum sezonu 1 (kod)</button>
+        <div class="msg" id="msgOld"></div>
+      </details>
       <p class="small">Każda gra to osobne miejsce w rankingu. Wyżej jest lepszy wynik, a przy remisie szybszy czas (pokazuje 50 najlepszych).</p>
     </div>
     <div class="card">
@@ -108,11 +114,16 @@
 </div>
 
 <script src="questions.js"></script>
-<script src="questions_geo.js"></script>
-<script src="questions_hist.js"></script>
-<script src="questions_nauka.js"></script>
-<script src="questions_kultura.js"></script>
-<script src="questions_sport_ogolne.js"></script>
+<script src="pytania_geografia.js"></script>
+<script src="pytania_historia_polski.js"></script>
+<script src="pytania_historia_swiata.js"></script>
+<script src="pytania_nauka.js"></script>
+<script src="pytania_przyroda.js"></script>
+<script src="pytania_literatura.js"></script>
+<script src="pytania_kultura.js"></script>
+<script src="pytania_sport.js"></script>
+<script src="pytania_mitologia.js"></script>
+<script src="pytania_ogolne.js"></script>
 <script>
 (function(){
   var N = 10, TIME = 20;
@@ -120,6 +131,7 @@
   var JSONBIN_ID = "6ae99ea0ffd5d16053a1c647";
   var JSONBIN_KEY = "$2a$10$dIElLY9vU.Db5Uq0htIu0.O0LhfyrmNvwzNnE6pRlalK8dFidnwyq"; // <- wklej tutaj Access Key (Read + Update); bez niego ranking tylko się wczytuje
   var JB_URL = "https://api.jsonbin.io/v3/b/" + JSONBIN_ID;
+  var SEASON = "2";   // sezon rankingu; wyniki bez pola season należą do sezonu 1 (archiwum)
   var LS_PREF = "1z10_pref", LS_RES = "1z10_results", LS_NICK = "1z10_nick", LS_SEEN = "1z10_seen";
   var $ = function(id){ return document.getElementById(id); };
 
@@ -143,15 +155,16 @@
     var added = 0;
     list.forEach(function(r){
       if (valid(r) && !ids[r.id]) {
-        results.push({ id: r.id.slice(0,40), nick: r.nick, score: r.score, time: Math.round(r.time), date: String(r.date || "").slice(0,10), ts: typeof r.ts === "string" ? r.ts.slice(0,30) : "", mode: typeof r.mode === "string" ? r.mode.slice(0,40) : "" });
+        results.push({ id: r.id.slice(0,40), nick: r.nick, score: r.score, time: Math.round(r.time), date: String(r.date || "").slice(0,10), ts: typeof r.ts === "string" ? r.ts.slice(0,30) : "", mode: typeof r.mode === "string" ? r.mode.slice(0,40) : "", season: typeof r.season === "string" ? r.season.slice(0,8) : "" });
         ids[r.id] = 1; added++;
       }
     });
     save(LS_RES, results);
     return added;
   }
-  function allGames(){
-    return results.slice().sort(function(a,b){
+  function seasonOf(r){ return r.season || "1"; }
+  function allGames(season){
+    return results.filter(function(r){ return seasonOf(r) === season; }).sort(function(a,b){
       return b.score - a.score || a.time - b.time || String(a.ts || a.date).localeCompare(String(b.ts || b.date));
     });
   }
@@ -164,10 +177,12 @@
     var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(r.date || "");
     return m ? m[3] + "." + m[2] : "";
   }
-  function renderRank(highlight){
-    var box = $("rank"); box.textContent = "";
-    var list = allGames().slice(0, 50);
-    if (!list.length) { box.appendChild(el("p", "Brak wyników. Zagraj pierwszy!", "small")); return; }
+  function renderRank(highlight, season, boxId){
+    season = season || SEASON; boxId = boxId || "rank";
+    if (boxId === "rank") renderRank(null, "1", "rankOld");   // archiwum
+    var box = $(boxId); box.textContent = "";
+    var list = allGames(season).slice(0, 50);
+    if (!list.length) { box.appendChild(el("p", season === SEASON ? "Brak wyników. Zagraj pierwszy!" : "Brak wyników w archiwum.", "small")); return; }
     var t = el("table"), h = el("tr");
     ["#","Gracz","Wynik","Czas","Data"].forEach(function(x,i){ h.appendChild(el("th", x, i>=2 ? "r" : "")); });
     t.appendChild(h);
@@ -278,7 +293,7 @@
   }
   function finish(){
     var secs = Math.round((Date.now() - g.t0) / 1000);
-    var r = { id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), nick: g.nick, score: g.score, time: secs, date: new Date().toISOString().slice(0,10), ts: new Date().toISOString(), mode: g.mode };
+    var r = { id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), nick: g.nick, score: g.score, time: secs, date: new Date().toISOString().slice(0,10), ts: new Date().toISOString(), mode: g.mode, season: SEASON };
     if (!g.anon) { results.push(r); save(LS_RES, results); sync(true); }
     $("resTitle").textContent = g.anon ? "Gra anonimowa. Twój wynik:" : g.nick + ", Twój wynik:";
     $("resScore").textContent = g.score + " / " + N;
@@ -303,6 +318,14 @@
   $("next").onclick = nextQ;
   $("again").onclick = function(){ startGame(); };
   $("toHome").onclick = function(){ renderRank(g && !g.anon && g.nick); show("home"); sync(false); };
+  $("copyOld").onclick = function(){
+    var old = results.filter(function(r){ return seasonOf(r) !== SEASON; });
+    var code = enc(JSON.stringify(old));
+    var m = $("msgOld");
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(function(){ m.textContent = "Skopiowano " + old.length + " wyników z archiwum."; }, fb);
+    else fb();
+    function fb(){ $("importBox").value = code; $("importBox").select(); m.textContent = "Kod wstawiony do pola w „Wspólny ranking ze znajomymi” – zaznacz i skopiuj."; }
+  };
   $("copyCode").onclick = function(){
     var code = enc(JSON.stringify(results));
     var done = function(){ $("msg").textContent = "Skopiowano! Wyślij kod znajomym."; };
@@ -350,7 +373,9 @@
       merge(list);
       renderRank($("nick").value.trim());
       if (push && JSONBIN_KEY) {
-        var all = results.filter(valid).slice(-500);
+        var okAll = results.filter(valid);
+        var all = okAll.filter(function(r){ return seasonOf(r) !== SEASON; })                 // archiwum zostaje w całości
+          .concat(okAll.filter(function(r){ return seasonOf(r) === SEASON; }).slice(-500));
         return fetch(JB_URL, {
           method: "PUT",
           headers: { "Content-Type": "application/json", "X-Access-Key": JSONBIN_KEY },
